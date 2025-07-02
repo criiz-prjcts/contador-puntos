@@ -1,5 +1,5 @@
 import streamlit as st
-from collections import Counter
+from collections import defaultdict
 import pandas as pd
 import re
 
@@ -19,55 +19,52 @@ def procesar_rondas(texto, reglas):
     rondas_raw = re.split(r"\n*\d+\.\s*", texto)
     rondas = [r.strip() for r in rondas_raw if r.strip()]
 
-    puntos_totales = Counter()
+    puntos_totales = defaultdict(int)
     desglose = {}
 
     for idx, ronda in enumerate(rondas, start=1):
-        lineas = ronda.split('\n')
-        lineas = [l.strip() for l in lineas if l.strip()]
+        lineas = ronda.strip().split('\n')
+        lineas = [l for l in lineas if l.strip()]
         if len(lineas) < 2:
             continue
 
-        equipos_linea = lineas[0]
-        secuencia = ''.join(lineas[1:])
-        equipos = equipos_linea.strip()
-        secuencia = re.sub(r"\s+", "", secuencia.strip())
+        secuencia = ''.join(lineas[1:]).replace(' ', '').strip()
 
-        orden_aparicion = []
+        conteo_apariciones = defaultdict(int)
+        orden_encontrado = []
+
+        # Primero, recorrer secuencia y determinar orden de aparición y contar
         for c in secuencia:
-            if c not in orden_aparicion:
-                orden_aparicion.append(c)
+            conteo_apariciones[c] += 1
+            if c not in orden_encontrado:
+                orden_encontrado.append(c)
 
-        podio = orden_aparicion[:3]
-        conteo = Counter([c for c in secuencia])
-
-        datos_ronda = []
+        podio = orden_encontrado[:3]
         total_ronda = 0
+        tabla_ronda = []
 
-        for equipo in conteo:
-            apariciones = conteo[equipo]
-
-            if equipo == podio[0]:
-                puntos = reglas["1st"] + (apariciones - 1) * reglas["others"]
-            elif len(podio) > 1 and equipo == podio[1]:
-                puntos = reglas["2nd"] + (apariciones - 1) * reglas["others"]
-            elif len(podio) > 2 and equipo == podio[2]:
-                puntos = reglas["3rd"] + (apariciones - 1) * reglas["others"]
+        for emoji, cantidad in conteo_apariciones.items():
+            if emoji == podio[0]:
+                puntos = reglas["1st"] + (cantidad - 1) * reglas["others"]
+            elif len(podio) > 1 and emoji == podio[1]:
+                puntos = reglas["2nd"] + (cantidad - 1) * reglas["others"]
+            elif len(podio) > 2 and emoji == podio[2]:
+                puntos = reglas["3rd"] + (cantidad - 1) * reglas["others"]
             else:
-                puntos = apariciones * reglas["others"]
+                puntos = cantidad * reglas["others"]
 
-            puntos_totales[equipo] += puntos
+            puntos_totales[emoji] += puntos
             total_ronda += puntos
 
-            datos_ronda.append({
-                "Equipo": equipo,
-                "Apariciones": apariciones,
+            tabla_ronda.append({
+                "Equipo": emoji,
+                "Apariciones": cantidad,
                 "Puntos": puntos
             })
 
         desglose[idx] = {
             "total": total_ronda,
-            "datos": datos_ronda
+            "datos": sorted(tabla_ronda, key=lambda x: x["Puntos"], reverse=True)
         }
 
     return puntos_totales, desglose
@@ -89,9 +86,8 @@ if st.button("Calcular puntaje"):
         if resultado:
             st.subheader("Resultado final (listo para copiar)")
             resultado_texto = nombre_dinamica.strip() + '\n'
-            for equipo, puntos in resultado.most_common():
+            for equipo, puntos in sorted(resultado.items(), key=lambda x: x[1], reverse=True):
                 resultado_texto += f"{equipo} {puntos:,}\n"
-
             st.code(resultado_texto.strip(), language="markdown")
 
             if mostrar_tabla:
@@ -99,7 +95,6 @@ if st.button("Calcular puntaje"):
                 for ronda, info in desglose.items():
                     st.markdown(f"### Ronda {ronda} — Total: {info['total']:,} puntos")
                     df = pd.DataFrame(info["datos"])
-                    df = df.sort_values(by="Puntos", ascending=False)
                     st.table(df)
         else:
             st.warning("No se encontraron datos válidos para procesar.")
