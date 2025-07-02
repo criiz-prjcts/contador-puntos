@@ -25,33 +25,39 @@ def procesar_rondas(texto, reglas):
     for idx, ronda in enumerate(rondas, start=1):
         lineas = ronda.strip().split('\n')
         lineas = [l for l in lineas if l.strip()]
-        if len(lineas) < 2:
+        if not lineas:
             continue
 
-        secuencia = ''.join(lineas[1:]).replace(' ', '').strip()
+        # Detectar si hay línea de referencia
+        if len(lineas) >= 2:
+            linea_corta = lineas[0].strip()
+            secuencia = ''.join(lineas[1:]).replace(' ', '').strip()
+            podio = list(linea_corta)
+        else:
+            # Si solo hay una línea, usar orden de aparición en secuencia
+            secuencia = lineas[0].replace(' ', '').strip()
+            podio = []
+            for c in secuencia:
+                if c not in podio:
+                    podio.append(c)
+            podio = podio[:3]  # solo top 3
 
         conteo_apariciones = defaultdict(int)
-        orden_encontrado = []
-
-        # Primero, recorrer secuencia y determinar orden de aparición y contar
         for c in secuencia:
             conteo_apariciones[c] += 1
-            if c not in orden_encontrado:
-                orden_encontrado.append(c)
 
-        podio = orden_encontrado[:3]
         total_ronda = 0
         tabla_ronda = []
 
         for emoji, cantidad in conteo_apariciones.items():
             if emoji == podio[0]:
-                puntos = reglas["1st"] + (cantidad - 1) * reglas["others"]
+                puntos = rules["1st"] + (cantidad - 1) * rules["others"]
             elif len(podio) > 1 and emoji == podio[1]:
-                puntos = reglas["2nd"] + (cantidad - 1) * reglas["others"]
+                puntos = rules["2nd"] + (cantidad - 1) * rules["others"]
             elif len(podio) > 2 and emoji == podio[2]:
-                puntos = reglas["3rd"] + (cantidad - 1) * reglas["others"]
+                puntos = rules["3rd"] + (cantidad - 1) * rules["others"]
             else:
-                puntos = cantidad * reglas["others"]
+                puntos = cantidad * rules["others"]
 
             puntos_totales[emoji] += puntos
             total_ronda += puntos
@@ -69,12 +75,12 @@ def procesar_rondas(texto, reglas):
 
     return puntos_totales, desglose
 
-# === INTERFAZ DE USUARIO ===
+# === INTERFAZ STREAMLIT ===
 st.title("Contador de Puntos por Colegio")
 
 colegio = st.selectbox("Selecciona el colegio", list(rules.keys()))
 nombre_dinamica = st.text_input("Nombre de la dinámica", placeholder="Ej. Adivina el país")
-texto = st.text_area("Pega aquí las rondas con formato:", height=300, placeholder="1.\n🧡🩶💚\n🧡🧡🩶...")
+texto = st.text_area("Pega aquí las rondas con formato:", height=300, placeholder="1.\n🧡🩶💚\n🧡🧡🩶...\no\n1.\n🧡🩶💚🧡🧡🩶...")
 
 mostrar_tabla = st.checkbox("Mostrar desglose por ronda agrupado")
 
