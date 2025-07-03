@@ -3,8 +3,8 @@ from collections import defaultdict
 import pandas as pd
 import re
 
-# === CONFIGURACIÓN DE REGLAS POR COLEGIO ===
-rules = {
+# Reglas por colegio
+COLEGIOS = {
     "Nurmengard": {
         "1st": 500,
         "2nd": 400,
@@ -13,94 +13,88 @@ rules = {
     }
 }
 
-# === FUNCIÓN PARA PROCESAR RONDAS CON DETALLE DEL CÁLCULO ===
-def procesar_rondas(texto, reglas):
-    texto = texto.strip()
-    rondas_raw = re.split(r"\n*\d+\.\s*", texto)
+st.title("Contador de Puntos")
+
+colegio = st.selectbox("Selecciona el colegio:", list(COLEGIOS.keys()))
+nombre_dinamica = st.text_input("Nombre de la dinámica:")
+texto = st.text_area("Pega las rondas aquí (cada ronda debe tener 2 líneas).")
+
+mostrar_desglose = st.checkbox("Mostrar desglose por ronda", value=True)
+
+def procesar_rondas_detallado(texto, reglas):
+    rondas_raw = re.split(r"\n*\d+\.\s*", texto.strip())
     rondas_raw = [r.strip() for r in rondas_raw if r.strip()]
 
     puntos_totales = defaultdict(int)
+    resumen_lugares = defaultdict(lambda: defaultdict(int))
     desglose = {}
 
     for idx, ronda in enumerate(rondas_raw, start=1):
         lineas = ronda.split('\n')
         lineas = [l.strip() for l in lineas if l.strip()]
-
         if len(lineas) != 2:
-            continue  # solo procesar rondas con 2 líneas después del número
+            continue
 
         linea_corta = lineas[0]
-        secuencia = lineas[1].replace(' ', '')
+        linea_larga = lineas[1].replace(' ', '')
+
         podio = list(linea_corta)
-
         if len(podio) < 3:
-            continue  # requerimos exactamente 3 emojis en la línea corta
+            continue
 
-        conteo_apariciones = defaultdict(int)
-        for c in secuencia:
-            conteo_apariciones[c] += 1
+        apariciones_extras = defaultdict(int)
+        for c in linea_larga:
+            apariciones_extras[c] += 1
 
-        total_ronda = 0
         tabla_ronda = []
 
-        for emoji, cantidad in conteo_apariciones.items():
-            if emoji == podio[0]:
-                puntos = reglas["1st"] + (cantidad - 1) * reglas["others"]
-                detalle = f"(1×{reglas['1st']}) + ({cantidad - 1}×{reglas['others']})"
-            elif emoji == podio[1]:
-                puntos = reglas["2nd"] + (cantidad - 1) * reglas["others"]
-                detalle = f"(1×{reglas['2nd']}) + ({cantidad - 1}×{reglas['others']})"
-            elif emoji == podio[2]:
-                puntos = reglas["3rd"] + (cantidad - 1) * reglas["others"]
-                detalle = f"(1×{reglas['3rd']}) + ({cantidad - 1}×{reglas['others']})"
-            else:
-                puntos = cantidad * reglas["others"]
-                detalle = f"({cantidad}×{reglas['others']})"
-
+        for i, lugar in enumerate(["1st", "2nd", "3rd"]):
+            emoji = podio[i]
+            extras = apariciones_extras.get(emoji, 0)
+            puntos = reglas[lugar] + extras * reglas["others"]
+            detalle = f"(1×{reglas[lugar]}) + ({extras}×{reglas['others']})"
             puntos_totales[emoji] += puntos
-            total_ronda += puntos
-
+            resumen_lugares[emoji][lugar] += 1
             tabla_ronda.append({
+                "Ronda": idx,
                 "Equipo": emoji,
-                "Apariciones": cantidad,
+                "Lugar": lugar,
+                "Apariciones extra": extras,
                 "Puntos": puntos,
                 "Detalle del cálculo": detalle
             })
 
-        desglose[idx] = {
-            "total": total_ronda,
-            "datos": sorted(tabla_ronda, key=lambda x: x["Puntos"], reverse=True)
-        }
+        for emoji, cantidad in apariciones_extras.items():
+            if emoji not in podio:
+                puntos = cantidad * reglas["others"]
+                puntos_totales[emoji] += puntos
+                resumen_lugares[emoji]["others"] += 1
+                detalle = f"({cantidad}×{reglas['others']})"
+                tabla_ronda.append({
+                    "Ronda": idx,
+                    "Equipo": emoji,
+                    "Lugar": "others",
+                    "Apariciones extra": cantidad,
+                    "Puntos": puntos,
+                    "Detalle del cálculo": detalle
+                })
 
-    return puntos_totales, desglose
+        desglose[idx] = pd.DataFrame(sorted(tabla_ronda, key=lambda x: x["Puntos"], reverse=True))
 
-# === INTERFAZ STREAMLIT ===
-st.title("Contador de Puntos por Colegio")
+    return puntos_totales, resumen_lugares, desglose
 
-colegio = st.selectbox("Selecciona el colegio", list(rules.keys()))
-nombre_dinamica = st.text_input("Nombre de la dinámica", placeholder="Ej. Adivina el país")
-texto = st.text_area("Pega aquí las rondas (3 líneas cada una)", height=300,
-                     placeholder="1.\n🧡🩶💚\n🧡🧡🩶...")
+if texto and nombre_dinamica and colegio:
+    reglas = COLEGIOS[colegio]
+    resultado, resumen_lugares, desglose = procesar_rondas_detallado(texto, reglas)
+    
+    st.markdown(f"### {nombre_dinamica}")
+    resultado_ordenado = sorted(resultado.items(), key=lambda x: x[1], reverse=True)
+    for equipo, puntos in resultado_ordenado:
+        st.write(f"{equipo} {puntos:,}")
 
-mostrar_tabla = st.checkbox("Mostrar desglose por ronda agrupado")
-
-if st.button("Calcular puntaje"):
-    if not texto.strip() or not nombre_dinamica.strip():
-        st.warning("Por favor, completa todos los campos.")
-    else:
-        resultado, desglose = procesar_rondas(texto, rules[colegio])
-        if resultado:
-            st.subheader("Resultado final (listo para copiar)")
-            resultado_texto = nombre_dinamica.strip() + '\n'
-            for equipo, puntos in sorted(resultado.items(), key=lambda x: x[1], reverse=True):
-                resultado_texto += f"{equipo} {puntos:,}\n"
-            st.code(resultado_texto.strip(), language="markdown")
-
-            if mostrar_tabla:
-                st.subheader("Desglose por ronda")
-                for ronda, info in desglose.items():
-                    st.markdown(f"### Ronda {ronda} — Total: {info['total']:,} puntos")
-                    df = pd.DataFrame(info["datos"])
-                    st.table(df)
-        else:
-            st.warning("No se encontraron rondas válidas (deben tener 3 líneas).")
+    if mostrar_desglose:
+        st.markdown("---")
+        st.markdown("### Desglose por ronda")
+        for ronda, tabla in desglose.items():
+            st.markdown(f"**Ronda {ronda}**")
+            st.dataframe(tabla, use_container_width=True)
