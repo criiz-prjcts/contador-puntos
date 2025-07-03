@@ -10,10 +10,8 @@ COLEGIOS = {
         "3rd": 300,
         "others": 100
     },
-    "Numengard_Expres": {
+    "Nurmengard_Expres": {
         "1st": 200,
-        "2nd": 0,
-        "3rd": 0,
         "others": 100
     }
 }
