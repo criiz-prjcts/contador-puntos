@@ -93,10 +93,16 @@ if calcular:
         resultado, resumen_lugares, desglose = procesar_rondas_detallado(texto, reglas)
 
         st.markdown(f"## {nombre_dinamica}")
-        resultado_ordenado = sorted(resultado.items(), key=lambda x: x[1], reverse=True)
-        for equipo, puntos in resultado_ordenado:
-            st.write(f"{equipo} {puntos:,}")
 
+        resultado_ordenado = sorted(resultado.items(), key=lambda x: x[1], reverse=True)
+        resultado_texto = f"{nombre_dinamica}\n"
+        for equipo, puntos in resultado_ordenado:
+            resultado_texto += f"{equipo} {puntos:,}\n"
+
+        # Mostrar bloque copiable
+        st.code(resultado_texto.strip(), language="markdown")
+
+        # Desglose opcional
         if mostrar_desglose:
             st.markdown("---")
             st.markdown("### Desglose por ronda")
