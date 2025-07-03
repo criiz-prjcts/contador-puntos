@@ -13,7 +13,7 @@ rules = {
     }
 }
 
-# === FUNCIÓN PARA PROCESAR RONDAS CON 3 LÍNEAS ===
+# === FUNCIÓN PARA PROCESAR RONDAS CON DETALLE DEL CÁLCULO ===
 def procesar_rondas(texto, reglas):
     texto = texto.strip()
     rondas_raw = re.split(r"\n*\d+\.\s*", texto)
@@ -46,12 +46,16 @@ def procesar_rondas(texto, reglas):
         for emoji, cantidad in conteo_apariciones.items():
             if emoji == podio[0]:
                 puntos = reglas["1st"] + (cantidad - 1) * reglas["others"]
+                detalle = f"(1×{reglas['1st']}) + ({cantidad - 1}×{reglas['others']})"
             elif emoji == podio[1]:
                 puntos = reglas["2nd"] + (cantidad - 1) * reglas["others"]
+                detalle = f"(1×{reglas['2nd']}) + ({cantidad - 1}×{reglas['others']})"
             elif emoji == podio[2]:
                 puntos = reglas["3rd"] + (cantidad - 1) * reglas["others"]
+                detalle = f"(1×{reglas['3rd']}) + ({cantidad - 1}×{reglas['others']})"
             else:
                 puntos = cantidad * reglas["others"]
+                detalle = f"({cantidad}×{reglas['others']})"
 
             puntos_totales[emoji] += puntos
             total_ronda += puntos
@@ -59,7 +63,8 @@ def procesar_rondas(texto, reglas):
             tabla_ronda.append({
                 "Equipo": emoji,
                 "Apariciones": cantidad,
-                "Puntos": puntos
+                "Puntos": puntos,
+                "Detalle del cálculo": detalle
             })
 
         desglose[idx] = {
