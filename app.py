@@ -27,7 +27,7 @@ def procesar_rondas(texto, reglas):
         lineas = [l.strip() for l in lineas if l.strip()]
 
         if len(lineas) != 2:
-            continue  # solo procesar rondas con 2 líneas después del número (3 líneas en total)
+            continue  # solo procesar rondas con 2 líneas después del número
 
         linea_corta = lineas[0]
         secuencia = lineas[1].replace(' ', '')
@@ -45,13 +45,13 @@ def procesar_rondas(texto, reglas):
 
         for emoji, cantidad in conteo_apariciones.items():
             if emoji == podio[0]:
-                puntos = rules["1st"] + (cantidad - 1) * rules["others"]
+                puntos = reglas["1st"] + (cantidad - 1) * reglas["others"]
             elif emoji == podio[1]:
-                puntos = rules["2nd"] + (cantidad - 1) * rules["others"]
+                puntos = reglas["2nd"] + (cantidad - 1) * reglas["others"]
             elif emoji == podio[2]:
-                puntos = rules["3rd"] + (cantidad - 1) * rules["others"]
+                puntos = reglas["3rd"] + (cantidad - 1) * reglas["others"]
             else:
-                puntos = cantidad * rules["others"]
+                puntos = cantidad * reglas["others"]
 
             puntos_totales[emoji] += puntos
             total_ronda += puntos
