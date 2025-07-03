@@ -33,29 +33,37 @@ if st.button("Calcular puntos"):
 
     for ronda in rondas:
         lineas = ronda.strip().split("\n")
-        if len(lineas) < 2:
+        if len(lineas) < 1:
             continue
 
-        # Detectar si es formato de 1 o 2 líneas
-        partes = lineas[1:] if len(lineas) > 2 else [lineas[0].split(".", 1)[-1].strip()]
-        if len(partes) == 1:
-            linea_unica = partes[0].strip()
-            apariciones = list(linea_unica)
-            lugares = [apariciones[0]]
+        titulo = lineas[0].strip()
+        contenido = lineas[1:]
+
+        # Si solo hay una línea con emojis
+        if len(contenido) == 1:
+            apariciones = list(contenido[0].strip())
+            if not apariciones:
+                continue
+            lugares = [emoji for i, emoji in enumerate(apariciones) if emoji not in apariciones[:i]][:3]
+        elif len(contenido) >= 2:
+            lugares = list(contenido[0].strip())
+            apariciones = list(contenido[1].strip())
         else:
-            lugares = list(partes[0].strip())
-            apariciones = list(partes[1].strip())
+            continue
 
         conteo = Counter(apariciones)
         ronda_detalle = []
         puntos_por_equipo = defaultdict(int)
 
+        usados = set()
         for idx, lugar in enumerate(["1st", "2nd", "3rd"]):
             if idx < len(lugares):
                 equipo = lugares[idx]
-                puntos = rules.get(lugar, 0)
-                puntos_por_equipo[equipo] += puntos
-                conteo[equipo] -= 1
+                if equipo not in usados:
+                    puntos = rules.get(lugar, 0)
+                    puntos_por_equipo[equipo] += puntos
+                    conteo[equipo] -= 1
+                    usados.add(equipo)
 
         for equipo, cantidad in conteo.items():
             if cantidad > 0:
@@ -64,15 +72,16 @@ if st.button("Calcular puntos"):
 
         for equipo, puntos in puntos_por_equipo.items():
             resultado[equipo] += puntos
-            detalle = f"({conteo[equipo]+1 if equipo in lugares else conteo[equipo]}×{rules['others']})"
+            total_apariciones = apariciones.count(equipo)
+            detalle = f"({total_apariciones}×{rules['others']})"
             if equipo in lugares:
                 idx = lugares.index(equipo)
                 lugar_key = ["1st", "2nd", "3rd"][idx]
                 especial = rules.get(lugar_key, 0)
-                detalle = f"(1×{especial}) + ({conteo[equipo]}×{rules['others']})"
-            ronda_detalle.append((equipo, apariciones.count(equipo), puntos_por_equipo[equipo], detalle))
+                detalle = f"(1×{especial}) + ({total_apariciones - 1}×{rules['others']})"
+            ronda_detalle.append((equipo, total_apariciones, puntos_por_equipo[equipo], detalle))
 
-        desglose.append((lineas[0], sorted(ronda_detalle, key=lambda x: x[2], reverse=True)))
+        desglose.append((titulo, sorted(ronda_detalle, key=lambda x: x[2], reverse=True)))
 
     # Mostrar resultado final
     st.markdown(f"## {nombre_dinamica}")
