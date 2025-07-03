@@ -13,13 +13,14 @@ COLEGIOS = {
     }
 }
 
-st.title("Contador de Puntos")
+st.title("🏆 Contador de Puntos por Colegio")
 
 colegio = st.selectbox("Selecciona el colegio:", list(COLEGIOS.keys()))
-nombre_dinamica = st.text_input("Nombre de la dinámica:")
-texto = st.text_area("Pega las rondas aquí (cada ronda debe tener 2 líneas).")
+nombre_dinamica = st.text_input("Nombre de la dinámica")
+texto = st.text_area("Pega aquí las rondas (2 líneas por ronda: 1. orden de lugares, 2. todas las apariciones)")
 
 mostrar_desglose = st.checkbox("Mostrar desglose por ronda", value=True)
+calcular = st.button("Calcular puntos")
 
 def procesar_rondas_detallado(texto, reglas):
     rondas_raw = re.split(r"\n*\d+\.\s*", texto.strip())
@@ -83,18 +84,22 @@ def procesar_rondas_detallado(texto, reglas):
 
     return puntos_totales, resumen_lugares, desglose
 
-if texto and nombre_dinamica and colegio:
-    reglas = COLEGIOS[colegio]
-    resultado, resumen_lugares, desglose = procesar_rondas_detallado(texto, reglas)
-    
-    st.markdown(f"### {nombre_dinamica}")
-    resultado_ordenado = sorted(resultado.items(), key=lambda x: x[1], reverse=True)
-    for equipo, puntos in resultado_ordenado:
-        st.write(f"{equipo} {puntos:,}")
+# Cuando se presiona el botón
+if calcular:
+    if not texto or not nombre_dinamica:
+        st.warning("Por favor, completa el nombre de la dinámica y las rondas.")
+    else:
+        reglas = COLEGIOS[colegio]
+        resultado, resumen_lugares, desglose = procesar_rondas_detallado(texto, reglas)
 
-    if mostrar_desglose:
-        st.markdown("---")
-        st.markdown("### Desglose por ronda")
-        for ronda, tabla in desglose.items():
-            st.markdown(f"**Ronda {ronda}**")
-            st.dataframe(tabla, use_container_width=True)
+        st.markdown(f"## {nombre_dinamica}")
+        resultado_ordenado = sorted(resultado.items(), key=lambda x: x[1], reverse=True)
+        for equipo, puntos in resultado_ordenado:
+            st.write(f"{equipo} {puntos:,}")
+
+        if mostrar_desglose:
+            st.markdown("---")
+            st.markdown("### Desglose por ronda")
+            for ronda, tabla in desglose.items():
+                st.markdown(f"**Ronda {ronda}**")
+                st.dataframe(tabla, use_container_width=True)
