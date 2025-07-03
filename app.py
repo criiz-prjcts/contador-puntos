@@ -1,111 +1,94 @@
 import streamlit as st
-from collections import defaultdict
-import pandas as pd
+from collections import defaultdict, Counter
 import re
 
-# Reglas por colegio
+# Reglas de puntuación por colegio
 COLEGIOS = {
     "Nurmengard": {
         "1st": 500,
         "2nd": 400,
         "3rd": 300,
         "others": 100
+    },
+    "Numengard_Expres": {
+        "1st": 200,
+        "2nd": 0,
+        "3rd": 0,
+        "others": 100
     }
 }
 
-st.title("🏆 Contador de Puntos por Colegio")
+st.title("Contador de Puntos por Colegio")
 
-colegio = st.selectbox("Selecciona el colegio:", list(COLEGIOS.keys()))
+colegio = st.selectbox("Selecciona el colegio", list(COLEGIOS.keys()))
 nombre_dinamica = st.text_input("Nombre de la dinámica")
-texto = st.text_area("Pega aquí las rondas (2 líneas por ronda: 1. orden de lugares, 2. todas las apariciones)")
+texto = st.text_area("Pega aquí las rondas de la competencia")
+mostrar_detalle = st.checkbox("Mostrar desglose por ronda")
 
-mostrar_desglose = st.checkbox("Mostrar desglose por ronda", value=True)
-calcular = st.button("Calcular puntos")
+rules = COLEGIOS[colegio]
 
-def procesar_rondas_detallado(texto, reglas):
-    rondas_raw = re.split(r"\n*\d+\.\s*", texto.strip())
-    rondas_raw = [r.strip() for r in rondas_raw if r.strip()]
+if st.button("Calcular puntos"):
+    rondas = re.split(r"\n(?=\d+\.)", texto.strip())
 
-    puntos_totales = defaultdict(int)
-    resumen_lugares = defaultdict(lambda: defaultdict(int))
-    desglose = {}
+    resultado = defaultdict(int)
+    desglose = []
 
-    for idx, ronda in enumerate(rondas_raw, start=1):
-        lineas = ronda.split('\n')
-        lineas = [l.strip() for l in lineas if l.strip()]
-        if len(lineas) != 2:
+    for ronda in rondas:
+        lineas = ronda.strip().split("\n")
+        if len(lineas) < 2:
             continue
 
-        linea_corta = lineas[0]
-        linea_larga = lineas[1].replace(' ', '')
+        # Detectar si es formato de 1 o 2 líneas
+        partes = lineas[1:] if len(lineas) > 2 else [lineas[0].split(".", 1)[-1].strip()]
+        if len(partes) == 1:
+            linea_unica = partes[0].strip()
+            apariciones = list(linea_unica)
+            lugares = [apariciones[0]]
+        else:
+            lugares = list(partes[0].strip())
+            apariciones = list(partes[1].strip())
 
-        podio = list(linea_corta)
-        if len(podio) < 3:
-            continue
+        conteo = Counter(apariciones)
+        ronda_detalle = []
+        puntos_por_equipo = defaultdict(int)
 
-        apariciones_extras = defaultdict(int)
-        for c in linea_larga:
-            apariciones_extras[c] += 1
+        for idx, lugar in enumerate(["1st", "2nd", "3rd"]):
+            if idx < len(lugares):
+                equipo = lugares[idx]
+                puntos = rules.get(lugar, 0)
+                puntos_por_equipo[equipo] += puntos
+                conteo[equipo] -= 1
 
-        tabla_ronda = []
+        for equipo, cantidad in conteo.items():
+            if cantidad > 0:
+                puntos = cantidad * rules["others"]
+                puntos_por_equipo[equipo] += puntos
 
-        for i, lugar in enumerate(["1st", "2nd", "3rd"]):
-            emoji = podio[i]
-            extras = apariciones_extras.get(emoji, 0)
-            puntos = reglas[lugar] + extras * reglas["others"]
-            detalle = f"(1×{reglas[lugar]}) + ({extras}×{reglas['others']})"
-            puntos_totales[emoji] += puntos
-            resumen_lugares[emoji][lugar] += 1
-            tabla_ronda.append({
-                "Ronda": idx,
-                "Equipo": emoji,
-                "Lugar": lugar,
-                "Apariciones extra": extras,
-                "Puntos": puntos,
-                "Detalle del cálculo": detalle
-            })
+        for equipo, puntos in puntos_por_equipo.items():
+            resultado[equipo] += puntos
+            detalle = f"({conteo[equipo]+1 if equipo in lugares else conteo[equipo]}×{rules['others']})"
+            if equipo in lugares:
+                idx = lugares.index(equipo)
+                lugar_key = ["1st", "2nd", "3rd"][idx]
+                especial = rules.get(lugar_key, 0)
+                detalle = f"(1×{especial}) + ({conteo[equipo]}×{rules['others']})"
+            ronda_detalle.append((equipo, apariciones.count(equipo), puntos_por_equipo[equipo], detalle))
 
-        for emoji, cantidad in apariciones_extras.items():
-            if emoji not in podio:
-                puntos = cantidad * reglas["others"]
-                puntos_totales[emoji] += puntos
-                resumen_lugares[emoji]["others"] += 1
-                detalle = f"({cantidad}×{reglas['others']})"
-                tabla_ronda.append({
-                    "Ronda": idx,
-                    "Equipo": emoji,
-                    "Lugar": "others",
-                    "Apariciones extra": cantidad,
-                    "Puntos": puntos,
-                    "Detalle del cálculo": detalle
-                })
+        desglose.append((lineas[0], sorted(ronda_detalle, key=lambda x: x[2], reverse=True)))
 
-        desglose[idx] = pd.DataFrame(sorted(tabla_ronda, key=lambda x: x["Puntos"], reverse=True))
+    # Mostrar resultado final
+    st.markdown(f"## {nombre_dinamica}")
+    resultado_ordenado = sorted(resultado.items(), key=lambda x: x[1], reverse=True)
 
-    return puntos_totales, resumen_lugares, desglose
+    resultado_texto = f"{nombre_dinamica}\n"
+    for equipo, puntos in resultado_ordenado:
+        resultado_texto += f"{equipo} {puntos:,}\n"
 
-# Cuando se presiona el botón
-if calcular:
-    if not texto or not nombre_dinamica:
-        st.warning("Por favor, completa el nombre de la dinámica y las rondas.")
-    else:
-        reglas = COLEGIOS[colegio]
-        resultado, resumen_lugares, desglose = procesar_rondas_detallado(texto, reglas)
+    st.code(resultado_texto.strip(), language="markdown")
 
-        st.markdown(f"## {nombre_dinamica}")
-
-        resultado_ordenado = sorted(resultado.items(), key=lambda x: x[1], reverse=True)
-        resultado_texto = f"{nombre_dinamica}\n"
-        for equipo, puntos in resultado_ordenado:
-            resultado_texto += f"{equipo} {puntos:,}\n"
-
-        # Mostrar bloque copiable
-        st.code(resultado_texto.strip(), language="markdown")
-
-        # Desglose opcional
-        if mostrar_desglose:
-            st.markdown("---")
-            st.markdown("### Desglose por ronda")
-            for ronda, tabla in desglose.items():
-                st.markdown(f"**Ronda {ronda}**")
-                st.dataframe(tabla, use_container_width=True)
+    # Mostrar detalle por ronda
+    if mostrar_detalle:
+        for titulo_ronda, detalles in desglose:
+            st.markdown(f"### {titulo_ronda}")
+            for equipo, apariciones, puntos, formula in detalles:
+                st.write(f"{equipo}: {apariciones} apariciones → {puntos} puntos {formula}")
