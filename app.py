@@ -55,31 +55,18 @@ if st.button("Calcular puntos"):
         ronda_detalle = []
         puntos_por_equipo = defaultdict(int)
 
-        usados = set()
-        for idx, lugar in enumerate(["1st", "2nd", "3rd"]):
-            if idx < len(lugares):
-                equipo = lugares[idx]
-                if equipo not in usados:
-                    puntos = rules.get(lugar, 0)
-                    puntos_por_equipo[equipo] += puntos
-                    conteo[equipo] -= 1
-                    usados.add(equipo)
+        primer_lugar = lugares[0] if lugares else None
 
         for equipo, cantidad in conteo.items():
-            if cantidad > 0:
-                puntos = cantidad * rules["others"]
-                puntos_por_equipo[equipo] += puntos
-
-        for equipo, puntos in puntos_por_equipo.items():
+            if equipo == primer_lugar:
+                puntos = rules.get("1st", 0) + (cantidad - 1) * rules.get("others", 0)
+                detalle = f"(1×{rules.get('1st', 0)}) + ({cantidad - 1}×{rules.get('others', 0)})"
+            else:
+                puntos = cantidad * rules.get("others", 0)
+                detalle = f"({cantidad}×{rules.get('others', 0)})"
+            puntos_por_equipo[equipo] = puntos
             resultado[equipo] += puntos
-            total_apariciones = apariciones.count(equipo)
-            detalle = f"({total_apariciones}×{rules['others']})"
-            if equipo in lugares:
-                idx = lugares.index(equipo)
-                lugar_key = ["1st", "2nd", "3rd"][idx]
-                especial = rules.get(lugar_key, 0)
-                detalle = f"(1×{especial}) + ({total_apariciones - 1}×{rules['others']})"
-            ronda_detalle.append((equipo, total_apariciones, puntos_por_equipo[equipo], detalle))
+            ronda_detalle.append((equipo, cantidad, puntos, detalle))
 
         desglose.append((titulo, sorted(ronda_detalle, key=lambda x: x[2], reverse=True)))
 
