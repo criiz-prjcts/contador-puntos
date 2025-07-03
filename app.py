@@ -13,34 +13,28 @@ rules = {
     }
 }
 
-# === FUNCIÓN PARA PROCESAR RONDAS ===
+# === FUNCIÓN PARA PROCESAR RONDAS CON 3 LÍNEAS ===
 def procesar_rondas(texto, reglas):
     texto = texto.strip()
     rondas_raw = re.split(r"\n*\d+\.\s*", texto)
-    rondas = [r.strip() for r in rondas_raw if r.strip()]
+    rondas_raw = [r.strip() for r in rondas_raw if r.strip()]
 
     puntos_totales = defaultdict(int)
     desglose = {}
 
-    for idx, ronda in enumerate(rondas, start=1):
-        lineas = ronda.strip().split('\n')
-        lineas = [l for l in lineas if l.strip()]
-        if not lineas:
-            continue
+    for idx, ronda in enumerate(rondas_raw, start=1):
+        lineas = ronda.split('\n')
+        lineas = [l.strip() for l in lineas if l.strip()]
 
-        # Detectar si hay línea de referencia
-        if len(lineas) >= 2:
-            linea_corta = lineas[0].strip()
-            secuencia = ''.join(lineas[1:]).replace(' ', '').strip()
-            podio = list(linea_corta)
-        else:
-            # Si solo hay una línea, usar orden de aparición en secuencia
-            secuencia = lineas[0].replace(' ', '').strip()
-            podio = []
-            for c in secuencia:
-                if c not in podio:
-                    podio.append(c)
-            podio = podio[:3]  # solo top 3
+        if len(lineas) != 2:
+            continue  # solo procesar rondas con 2 líneas después del número (3 líneas en total)
+
+        linea_corta = lineas[0]
+        secuencia = lineas[1].replace(' ', '')
+        podio = list(linea_corta)
+
+        if len(podio) < 3:
+            continue  # requerimos exactamente 3 emojis en la línea corta
 
         conteo_apariciones = defaultdict(int)
         for c in secuencia:
@@ -52,9 +46,9 @@ def procesar_rondas(texto, reglas):
         for emoji, cantidad in conteo_apariciones.items():
             if emoji == podio[0]:
                 puntos = rules["1st"] + (cantidad - 1) * rules["others"]
-            elif len(podio) > 1 and emoji == podio[1]:
+            elif emoji == podio[1]:
                 puntos = rules["2nd"] + (cantidad - 1) * rules["others"]
-            elif len(podio) > 2 and emoji == podio[2]:
+            elif emoji == podio[2]:
                 puntos = rules["3rd"] + (cantidad - 1) * rules["others"]
             else:
                 puntos = cantidad * rules["others"]
@@ -80,7 +74,8 @@ st.title("Contador de Puntos por Colegio")
 
 colegio = st.selectbox("Selecciona el colegio", list(rules.keys()))
 nombre_dinamica = st.text_input("Nombre de la dinámica", placeholder="Ej. Adivina el país")
-texto = st.text_area("Pega aquí las rondas con formato:", height=300, placeholder="1.\n🧡🩶💚\n🧡🧡🩶...\no\n1.\n🧡🩶💚🧡🧡🩶...")
+texto = st.text_area("Pega aquí las rondas (3 líneas cada una)", height=300,
+                     placeholder="1.\n🧡🩶💚\n🧡🧡🩶...")
 
 mostrar_tabla = st.checkbox("Mostrar desglose por ronda agrupado")
 
@@ -103,4 +98,4 @@ if st.button("Calcular puntaje"):
                     df = pd.DataFrame(info["datos"])
                     st.table(df)
         else:
-            st.warning("No se encontraron datos válidos para procesar.")
+            st.warning("No se encontraron rondas válidas (deben tener 3 líneas).")
