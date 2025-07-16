@@ -9,6 +9,7 @@ st.title("📊 Contador de Puntos por Colegio")
 reglas_por_colegio = {
     "Nurmengard": {"first": 500, "second": 400, "third": 300, "others": 100},
     "Nurmengard_Expres": {"first": 200, "second": 100, "third": 100, "others": 100},
+    "Ilvermorny": {"first": 300, "second": 250, "third": 200, "fourth": 150, "others": 50},
 }
 
 colegio = st.selectbox("Selecciona el colegio:", list(reglas_por_colegio.keys()))
@@ -28,6 +29,7 @@ if st.button("Calcular puntajes"):
         if not lineas:
             continue
 
+        # Definir posiciones y apariciones
         if len(lineas) == 1:
             apariciones = list(lineas[0])
             lugares = [apariciones[0]]
@@ -42,19 +44,19 @@ if st.button("Calcular puntajes"):
         usados = set()
         detalles = {}
 
+        lugar_clave = ["first", "second", "third", "fourth"]
+
         for idx, emoji in enumerate(lugares):
             if emoji in usados:
                 continue
             usados.add(emoji)
-            lugar_clave = ["first", "second", "third"]
-            clave = lugar_clave[idx] if idx < 3 else "others"
+            clave = lugar_clave[idx] if idx < len(lugar_clave) else "others"
             puntos_lugar = reglas.get(clave, reglas["others"])
             total_apariciones = conteo[emoji]
-            apariciones_extra = total_apariciones - 1
-            puntos_extra = apariciones_extra * reglas["others"]
+            puntos_extra = (total_apariciones - 1) * reglas["others"]
             total_puntos = puntos_lugar + puntos_extra
             puntajes_totales[emoji] += total_puntos
-            detalles[emoji] = f"{emoji}: {total_apariciones} apariciones → {total_puntos} puntos (1×{puntos_lugar}) + ({apariciones_extra}×{reglas['others']})"
+            detalles[emoji] = f"{emoji}: {total_apariciones} apariciones → {total_puntos} puntos (1×{puntos_lugar}) + ({total_apariciones - 1}×{reglas['others']})"
 
         for emoji in conteo:
             if emoji not in usados:
