@@ -7,9 +7,9 @@ st.title("📊 Contador de Puntos por Colegio")
 
 # Configuración de reglas por colegio
 reglas_por_colegio = {
+    "Ilvermorny": {"first": 300, "second": 250, "third": 200, "fourth": 150, "others": 50},
     "Nurmengard": {"first": 500, "second": 400, "third": 300, "others": 100},
     "Nurmengard_Expres": {"first": 200, "second": 100, "third": 100, "others": 100},
-    "Ilvermorny": {"first": 300, "second": 250, "third": 200, "fourth": 150, "others": 50},
 }
 
 colegio = st.selectbox("Selecciona el colegio:", list(reglas_por_colegio.keys()))
